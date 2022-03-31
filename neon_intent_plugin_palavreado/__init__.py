@@ -1,15 +1,17 @@
 from ovos_utils.log import LOG
-from ovos_plugin_manager.templates.intents import IntentExtractor
+from ovos_plugin_manager.intents import IntentExtractor, IntentPriority, IntentDeterminationStrategy
 
 from palavreado import IntentContainer, IntentCreator
 
 
 class PalavreadoExtractor(IntentExtractor):
-    keyword_based = True
-    regex_entity_support = True
+    def __init__(self, config=None,
+                 strategy=IntentDeterminationStrategy.SEGMENT_REMAINDER,
+                 priority=IntentPriority.KEYWORDS_LOW,
+                 segmenter=None):
+        super().__init__(config, strategy=strategy,
+                         priority=priority, segmenter=segmenter)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.intent_builders = {}
         self.rx_entities = {}
         self.engine = IntentContainer()
