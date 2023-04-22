@@ -47,6 +47,8 @@ class PalavreadoExtractor(IntentExtractor):
                                intent_type=intent["intent_type"],
                                intent_data=intent,
                                confidence=intent["conf"],
+                               utterance=utterance,
+                               utterance_remainder=intent["utterance_remainder"],
                                skill_id=skill_id)
 
         return None
