@@ -1,6 +1,5 @@
 from ovos_utils.log import LOG
-from ovos_plugin_manager.intents import IntentExtractor, IntentPriority, IntentDeterminationStrategy
-
+from ovos_plugin_manager.intents import IntentExtractor, IntentPriority, IntentDeterminationStrategy, EntityDefinition, RegexEntityDefinition
 from palavreado import IntentContainer, IntentCreator
 
 
@@ -11,51 +10,35 @@ class PalavreadoExtractor(IntentExtractor):
                  segmenter=None):
         super().__init__(config, strategy=strategy,
                          priority=priority, segmenter=segmenter)
+        self.engines = {}  # lang: IntentContainer
 
-        self.intent_builders = {}
-        self.rx_entities = {}
-        self.engine = IntentContainer()
+    def _get_engine(self, lang=None):
+        lang = lang or self.lang
+        if lang not in self.engines:
+            self.engines[lang] = IntentContainer()
+        return self.engines[lang]
 
-    def register_regex_entity(self, entity_name, samples):
-        self.rx_entities[entity_name] = samples
+    def calc_intent(self, utterance, min_conf=0.0, lang=None, session=None):
+        lang = lang or self.lang
+        engine = self._get_engine(lang)
 
-    def register_regex_intent(self, intent_name, samples):
-        self.register_regex_entity(intent_name + "_rx", samples)
-        self.register_intent(intent_name, [intent_name + "_rx"])
-
-    def register_intent(self, intent_name, samples=None,
-                        optional_samples=None):
-        """
-        :param intent_name: intent_name
-        :param samples: list of required registered entities (names)
-        :param optional_samples: list of optional registered samples (names)
-        :return:
-        """
-        super().register_intent(intent_name, samples)
-        samples = samples or []
-        optional_samples = optional_samples or []
-        # structure intent
-        intent = IntentCreator(intent_name)
-        for kw in samples:
-            intent.require(kw, [])
-        for kw in optional_samples:
-            intent.optionally(kw, [])
-        self.intent_builders[intent_name] = intent
-        return intent
-
-    def calc_intent(self, utterance, min_conf=0.0):
         # update intents with registered entity samples
-        for intent_name, intent in self.intent_builders.items():
-            for kw, samples in self.rx_entities.items():
-                if kw in intent.required or kw in intent.optional:
-                    intent.regexes[kw] = samples
-            for kw, samples in self.registered_entities.items():
-                if kw in intent.required:
-                    intent.required[kw] = samples
-                elif kw in intent.optional:
-                    intent.optional[kw] = samples
-            self.engine.add_intent(intent)
-        intent = self.engine.calc_intent(utterance)
+        for intent in self.registered_intents:
+            if intent.lang != lang:
+                continue
+            intent = IntentCreator(intent.name)
+            for entity in self.registered_entities:
+                if entity.lang != lang:
+                    continue
+                if isinstance(entity, RegexEntityDefinition):
+                    intent.regexes[entity.name] = entity.samples
+                elif entity.name in intent.required:
+                    intent.required[entity.name] = entity.samples
+                elif entity.name in intent.optional:
+                    intent.optional[entity.name] = entity.samples
+            engine.add_intent(intent)
+
+        intent = engine.calc_intent(utterance)
         if intent.get("conf") > 0:
             intent["intent_engine"] = "palavreado"
             intent["intent_type"] = intent.pop("name")
