@@ -1,5 +1,4 @@
-from ovos_utils.log import LOG
-from ovos_plugin_manager.intents import IntentExtractor, IntentPriority, IntentDeterminationStrategy, EntityDefinition, RegexEntityDefinition
+from ovos_plugin_manager.intents import IntentExtractor, IntentPriority, IntentDeterminationStrategy, IntentMatch, EntityDefinition, RegexEntityDefinition
 from palavreado import IntentContainer, IntentCreator
 
 
@@ -42,7 +41,12 @@ class PalavreadoExtractor(IntentExtractor):
         if intent.get("conf") > 0:
             intent["intent_engine"] = "palavreado"
             intent["intent_type"] = intent.pop("name")
-            return intent
-        return {"conf": 0, "intent_type": "unknown", "entities": {},
-                "utterance": utterance, "utterance_remainder": utterance,
-                "intent_engine": "palavreado"}
+
+            skill_id = self.get_intent_skill_id(intent["intent_type"])
+            return IntentMatch(intent_service=intent["intent_engine"],
+                               intent_type=intent["intent_type"],
+                               intent_data=intent,
+                               confidence=intent["conf"],
+                               skill_id=skill_id)
+
+        return None
